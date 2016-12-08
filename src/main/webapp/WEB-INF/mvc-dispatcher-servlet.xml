@@ -1,0 +1,81 @@
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:context="http://www.springframework.org/schema/context"
+       xmlns:mvc="http://www.springframework.org/schema/mvc"
+       xmlns:util="http://www.springframework.org/schema/util"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans
+        http://www.springframework.org/schema/beans/spring-beans.xsd
+        http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context.xsd
+        http://www.springframework.org/schema/mvc http://www.springframework.org/schema/mvc/spring-mvc.xsd
+        http://www.springframework.org/schema/util http://www.springframework.org/schema/util/spring-util.xsd">
+
+    <context:component-scan base-package="mvc"/>
+    <mvc:annotation-driven content-negotiation-manager="contentNegotiationManager"/>
+    <mvc:resources mapping="/resources/**" location="/resources/"/>
+
+    <context:property-placeholder location="classpath:application.properties"/>
+
+    <bean id="contentNegotiationManager" class="org.springframework.web.accept.ContentNegotiationManagerFactoryBean">
+        <property name="defaultContentType" value="application/json"/>
+    </bean>
+
+    <bean class="org.springframework.web.servlet.view.InternalResourceViewResolver">
+        <property name="prefix" value="/WEB-INF/pages/"/>
+        <property name="suffix" value=".jsp"/>
+    </bean>
+
+    <bean id="validator" class="org.springframework.validation.beanvalidation.LocalValidatorFactoryBean"/>
+
+    <bean id="messageSource"
+          class="org.springframework.context.support.ReloadableResourceBundleMessageSource">
+        <property name="basename" value="/resources/messages"/>
+        <property name="defaultEncoding" value="UTF-8"/>
+    </bean>
+
+    <util:list id="allValidatorRules">
+        <bean class="validators.all.AllValidatorTradeDateBefore"/>
+        <bean class="validators.all.AllValidatorTradeNonWorkingDayForCurrency"/>
+        <bean class="validators.all.AllValidatorTradeCustomerNotSupported"/>
+        <bean class="validators.all.AllValidatorTradeInvalidISO"/>
+    </util:list>
+
+    <util:list id="spotForwardValidatorRules">
+        <bean class="validators.spot_forward.TradeSpotForwardValidator"/>
+    </util:list>
+
+    <util:list id="optionValidatorRules">
+        <bean class="validators.option.OptionValidatorStyle"/>
+        <bean class="validators.option.OptionValidatorDates"/>
+        <bean class="validators.option.OptionValidatorAmericanOption"/>
+    </util:list>
+
+    <bean id="product" class="dto.TradeProduct"/>
+    <bean id="spotProduct" class="dto.SpotTradeProduct" parent="product"/>
+    <bean id="forwardProduct" class="dto.ForwardTradeProduct" parent="product"/>
+    <bean id="optionProduct" class="dto.OptionTradeProduct" parent="product"/>
+
+    <util:map id="supportedProducts">
+        <entry key="#{T(dto.ProductTypes).SPOT.name}" value-ref="spotProduct"/>
+        <entry key="#{T(dto.ProductTypes).FORWARD.name}" value-ref="forwardProduct"/>
+        <entry key="#{T(dto.ProductTypes).OPTION.name}" value-ref="optionProduct"/>
+    </util:map>
+
+    <util:map id="validatorRulesMap">
+        <entry key="#{T(dto.ProductTypes).ALL.name}" value-ref="allValidatorRules"/>
+        <entry key="#{T(dto.ProductTypes).SPOT.name}" value-ref="spotForwardValidatorRules"/>
+        <entry key="#{T(dto.ProductTypes).FORWARD.name}" value-ref="spotForwardValidatorRules"/>
+        <entry key="#{T(dto.ProductTypes).OPTION.name}" value-ref="optionValidatorRules"/>
+    </util:map>
+
+    <bean id="validatorFactory" class="validators.TradeValidatorFactory">
+        <property name="tradeValidators" ref="validatorRulesMap"/>
+    </bean>
+
+    <bean id="classFieldsProductFieldsConverter" class="converters.ClassFieldsProductFieldsConverter"/>
+    <bean id="jsonProductConverter" class="converters.JsonProductConverter"/>
+    <bean id="errorJsonConverter" class="converters.ErrorsJsonConverter"/>
+
+    <bean id="validationService" class="services.ValidationServiceImpl"/>
+    <bean id="productService" class="services.ProductServiceImpl"/>
+
+</beans>
